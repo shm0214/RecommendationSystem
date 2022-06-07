@@ -127,6 +127,61 @@ def svd_eval(mean, test, pu, qi, bu, bi):
     return np.sqrt(sum / num)
 
 
+def svdpp_train(train, test, user_num, item_num, epoch, lr, dim, lambda_):
+    np.random.seed(1)
+    bu = np.zeros(user_num)
+    bi = np.zeros(item_num)
+    pu = np.random.rand(user_num, dim)
+    qi = np.random.rand(item_num, dim)
+    yj = np.random.rand(item_num, dim)
+    mean = get_train_mean(train)
+    for epoch_ in range(epoch):
+        for user, items in train.items():
+            sqrt_len = np.sqrt(len(items))
+            for item in items.keys():
+                im_ratings = np.zeros(dim)
+                for i in items.keys():
+                    im_ratings += yj[i]
+                im_ratings /= sqrt_len
+                score = items[item]
+                dot = np.dot(pu[user] + im_ratings, qi[item])
+                error = score - mean - bu[user] - bi[item] - dot
+                bu[user] += lr * (error - lambda_ * bu[user])
+                bi[item] += lr * (error - lambda_ * bi[item])
+                puu = pu[user]
+                qii = qi[item]
+                pu[user] += lr * (error * qii - lambda_ * puu)
+                qi[item] += lr * (error * (puu + im_ratings) - lambda_ * qii)
+                yj[item] += lr * (error * qii / sqrt_len - lambda_ * yj[item])
+        print('epoch {}: RMSE: {}'.format(epoch_,
+                                          svdpp_eval(mean, test, pu, qi, bu,
+                                                   bi, yj)))
+    d = dict()
+    d['bu'] = bu
+    d['bi'] = bi
+    d['pu'] = pu
+    d['qi'] = qi
+    d['yj'] = yj
+    with open('svdpp.pkl', 'wb') as f:
+        pickle.dump(d, f)
+
+
+def svdpp_eval(mean, test, pu, qi, bu, bi, yj):
+    sum = 0
+    num = 0
+    for user, items in test.items():
+        sqrt_len = np.sqrt(len(items))
+        for item in items.keys():
+            im_ratings = np.zeros(pu.shape[1])
+            for i in items.keys():
+                im_ratings += yj[i]
+            im_ratings /= sqrt_len
+            dot = np.dot(pu[user] + im_ratings, qi[item])
+            score = dot + bi[item] + bu[user] + mean
+            sum += (score - items[item])**2
+            num += 1
+    return np.sqrt(sum / num)
+
 def surprise_test(test, epoch):
     algo = surprise.SVD(n_epochs=epoch,
                         lr_all=0.005,
