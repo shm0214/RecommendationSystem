@@ -85,7 +85,7 @@ def get_train_csv(train):
 
 
 def svd_train(train, test, user_num, item_num, epoch, lr, dim, lambda_):
-    np.random.seed(1)
+    best = 100000
     bu = np.zeros(user_num)
     bi = np.zeros(item_num)
     pu = np.random.rand(user_num, dim)
@@ -103,16 +103,17 @@ def svd_train(train, test, user_num, item_num, epoch, lr, dim, lambda_):
                 qii = qi[item]
                 pu[user] += lr * (error * qii - lambda_ * puu)
                 qi[item] += lr * (error * puu - lambda_ * qii)
-        print('epoch {}: RMSE: {}'.format(epoch_,
-                                          svd_eval(mean, test, pu, qi, bu,
-                                                   bi)))
-    d = dict()
-    d['bu'] = bu
-    d['bi'] = bi
-    d['pu'] = pu
-    d['qi'] = qi
-    with open('svd.pkl', 'wb') as f:
-        pickle.dump(d, f)
+        rmse = svd_eval(mean, test, pu, qi, bu, bi)
+        print('epoch {}: RMSE: {}'.format(epoch_, rmse))
+        if rmse < best:
+            best = rmse
+            d = dict()
+            d['bu'] = bu
+            d['bi'] = bi
+            d['pu'] = pu
+            d['qi'] = qi
+            with open('svd_{}.pkl'.format(dim), 'wb') as f:
+                pickle.dump(d, f)
 
 
 def svd_eval(mean, test, pu, qi, bu, bi):
@@ -127,8 +128,33 @@ def svd_eval(mean, test, pu, qi, bu, bi):
     return np.sqrt(sum / num)
 
 
+def svd_test(train, test_path, pkl_path):
+    mean = get_train_mean(train)
+    with open(pkl_path, 'rb') as f:
+        d = pickle.load(f)
+    bu = d['bu']
+    bi = d['bi']
+    pu = d['pu']
+    qi = d['qi']
+    with open(test_path, 'r') as f1:
+        with open('result.txt', 'w') as f2:
+            line = f1.readline()
+            while line:
+                user, num = line.split('|')
+                user = int(user)
+                num = int(num)
+                f2.write(line)
+                for _ in range(num):
+                    line = f1.readline()
+                    item = int(line)
+                    dot = np.dot(pu[user], qi[item])
+                    score = dot + bi[item] + bu[user] + mean
+                    f2.write("{}  {}\n".format(item, score))
+                line = f1.readline()
+
+
 def svdpp_train(train, test, user_num, item_num, epoch, lr, dim, lambda_):
-    np.random.seed(1)
+    best = 100000
     bu = np.zeros(user_num)
     bi = np.zeros(item_num)
     pu = np.random.rand(user_num, dim)
@@ -137,33 +163,35 @@ def svdpp_train(train, test, user_num, item_num, epoch, lr, dim, lambda_):
     mean = get_train_mean(train)
     for epoch_ in range(epoch):
         for user, items in train.items():
+            print(user)
             sqrt_len = np.sqrt(len(items))
             for item in items.keys():
-                im_ratings = np.zeros(dim)
-                for i in items.keys():
-                    im_ratings += yj[i]
+                # print(user, item)
+                im_ratings = np.sum(yj[list(items.keys())], axis=0)
                 im_ratings /= sqrt_len
                 score = items[item]
-                dot = np.dot(pu[user] + im_ratings, qi[item])
+                temp = pu[user] + im_ratings
+                dot = np.dot(temp, qi[item])
                 error = score - mean - bu[user] - bi[item] - dot
                 bu[user] += lr * (error - lambda_ * bu[user])
                 bi[item] += lr * (error - lambda_ * bi[item])
                 puu = pu[user]
                 qii = qi[item]
                 pu[user] += lr * (error * qii - lambda_ * puu)
-                qi[item] += lr * (error * (puu + im_ratings) - lambda_ * qii)
+                qi[item] += lr * (error * temp - lambda_ * qii)
                 yj[item] += lr * (error * qii / sqrt_len - lambda_ * yj[item])
-        print('epoch {}: RMSE: {}'.format(epoch_,
-                                          svdpp_eval(mean, test, pu, qi, bu,
-                                                   bi, yj)))
-    d = dict()
-    d['bu'] = bu
-    d['bi'] = bi
-    d['pu'] = pu
-    d['qi'] = qi
-    d['yj'] = yj
-    with open('svdpp.pkl', 'wb') as f:
-        pickle.dump(d, f)
+        rmse = svdpp_eval(mean, test, pu, qi, bu, bi, yj)
+        print('epoch {}: RMSE: {}'.format(epoch_, rmse))
+        if rmse < best:
+            best = rmse
+            d = dict()
+            d['bu'] = bu
+            d['bi'] = bi
+            d['pu'] = pu
+            d['qi'] = qi
+            d['yj'] = yj
+            with open('svdpp_{}.pkl'.format(dim), 'wb') as f:
+                pickle.dump(d, f)
 
 
 def svdpp_eval(mean, test, pu, qi, bu, bi, yj):
@@ -183,10 +211,10 @@ def svdpp_eval(mean, test, pu, qi, bu, bi, yj):
     return np.sqrt(sum / num)
 
 def surprise_test(test, epoch):
-    algo = surprise.SVD(n_epochs=epoch,
-                        lr_all=0.005,
+    algo = surprise.SVDpp(n_epochs=epoch,
+                        lr_all=0.002,
                         reg_all=0.02,
-                        n_factors=5)
+                        n_factors=100)
     reader = surprise.Reader(line_format='user item rating',
                              sep=',',
                              skip_lines=1,
@@ -204,24 +232,30 @@ def surprise_test(test, epoch):
     print(epoch, np.sqrt(sum / num))
 
 
+    
+
 if __name__ == '__main__':
     data = load_data('./data-202205/train.txt')
     train = copy.deepcopy(data)
     train, test = split(train)
-    # get_train_csv(train)
-    # for i in range(10):
-    #     surprise_test(test, i)
     user_num = 19835
     item_num = 624961
-    # train = {0:{0:1, 1:2, 2:3, 3:4, 4:5},1:{0:1, 1:2, 2:3, 3:4, 4:5}, 2:{0:1, 1:2, 2:3, 3:4, 4:5}, 3:{0:1, 1:2, 2:3, 3:4, 4:5}, 4:{1:2, 2:3}}
-    # test = {4:{0:1,3:4,4:5}}
-    # user_num = 5
-    # item_num = 5
+    for i in range(10):
+        surprise_test(test, i)
+    # svd_test(train, "./data-202205/test.txt", './svd_100.pkl')
     svd_train(train,
               test,
               user_num,
               item_num,
               epoch=20,
-              lr=0.005,
-              dim=5,
+              lr=0.0005,
+              dim=50,
               lambda_=0.02)
+    # svdpp_train(train,
+    #           test,
+    #           user_num,
+    #           item_num,
+    #           epoch=20,
+    #           lr=0.000005,
+    #           dim=10,
+    #           lambda_=0.02)
