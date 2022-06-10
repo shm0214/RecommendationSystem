@@ -7,7 +7,7 @@
 |    Size    | user | item |
 |:----------:|-----:|-----:|
 | train set  | 19835 |624960 |
-| test set   |      |      |
+| test set   | 19835 | 624960 |
 
 数据集统计数据如下，分别是非空项数，稀疏占比，均值，标准差。
 
@@ -148,17 +148,112 @@ def svdpp_eval(mean, test, pu, qi, bu, bi, yj):
 
 ### 相似属性物品加权
 
-此外，还尝试了“用户已经打分过的物品中和所预测item最相似的几个item计算得分”和SVD结果进行融合，相似度使用属性值进行计算。但是最终未能成功训练出能够收敛的模型，隧不在实验结果中展示。
+在使用SVD算法对推荐系统进行探究后，我们试图通过物品之间属性的相似性来对原算法精度进行进一步的优化。
+
+直观来讲，两个物品之间的属性越相似，用户对于这两个物品的评价就越接近。因此一个朴素的想法就是在预测用户
+对某物品的评分时，考虑与物品相似度最高的几个物品，将这些物品的预测值进行加权求和，也许能够使评分更加稳定。
+因此我们尝试使用k近邻来找出与某物品最相似的k个物品，物品间的距离采用属性的L2距离进行评估。其中k近邻算法得到相似物品的代码如下：
+
+```python
+def k_neighbour(attribute_dict,item,k=3):
+    #如果不在属性列表里
+    if item not in attribute_dict:
+        return []
+
+    attr1,attr2 = attribute_dict[item]
+    flag_1 = attr1!=-1
+    flag_2 = attr2!=-1
+    diff_list = []
+    #对不为None的属性进行距离计算
+    for idx,attributes in attribute_dict.items():
+        tmp_flag_1 = attributes[0]!=-1
+        tmp_flag_2 = attributes[1]!=-1
+        if flag_1==tmp_flag_1 and flag_2 == tmp_flag_2:
+            diff = 0
+            if flag_1:
+                diff+=abs(attributes[0]-attr1)
+            if flag_2:
+                diff+=abs(attributes[1]-attr2)
+            if diff==0:
+                diff_list.append([idx,diff])
+                if len(diff_list)==k:
+                    return diff_list
+    return diff_list
+```
+
+在得到了相似物品后，我们只需要预测用户对所有相似物品的评分，之后进行均值化处理即可：
+
+```python
+def svd_eval_with_kneighbour(mean, test, pu, qi, bu, bi,attribute_dict):
+    sum = 0
+    num = 0
+    for user, items in test.items():
+        for item in items.keys():
+            dot = np.dot(pu[user], qi[item])+bi[item]
+            #寻找相似物品
+            diff_list = k_neighbour(attribute_dict,item,k=5)
+            #均值化处理
+            for diff in diff_list:
+                neighbour_item = diff[0]
+                dot += np.dot(pu[user],qi[neighbour_item])+bi[neighbour_item]
+            score = dot/(len(diff_list)+1) + bu[user] + mean
+            sum += (score - items[item])**2
+            num += 1
+    return np.sqrt(sum / num)
+```
+
+### 基于用户历史评分的相似属性物品的模型校正
+
+对于上述相似属性物品预测值加权的模型校正的方法，有几条非常明显的缺陷：
+
+1.使用相似物品预测值的均值来进行模型校正，并不能有效校正有偏分布模型的偏置。
+
+2.没有考虑到用户历史行为的影响，单纯从模型出发缺乏客观性
+
+基于以上两点缺陷，我们考虑使用用户历史上已经评分的相似物品来对预测值进行校正，
+一方面这样可以直接使用历史记录上用户的真实评分，另一方面可以大大减小查找相似物品相似度的计算量。
+
+基于用户历史评分的k近邻算法如下：
+
+```python
+def k_neighbour_with_history(attribute_dict,history,item,k=3):
+    if item not in attribute_dict:
+        return []
+    attr1,attr2 = attribute_dict[item]
+    flag_1 = attr1!=-1
+    flag_2 = attr2!=-1
+    diff_list = []
+    for idx,score in history.items():
+        if idx not in attribute_dict:
+            continue
+        attributes = attribute_dict[idx]
+        tmp_flag_1 = attributes[0]!=-1
+        tmp_flag_2 = attributes[1]!=-1
+        if flag_1==tmp_flag_1 and flag_2 == tmp_flag_2:
+            diff = 0
+            if flag_1:
+                diff+=abs(attributes[0]-attr1)
+            if flag_2:
+                diff+=abs(attributes[1]-attr2)
+            if diff<5000:
+                diff_list.append([idx,diff])
+        diff_list = sorted(diff_list,key = lambda k:k[1])
+        if len(diff_list)>k:
+            return diff_list[:k]
+    return diff_list
+```
+
+在实际模型预测校正中仍然采用均值处理，改动较小，在这里不再赘述。
 
 ## 实验结果及分析
 
 这里在训练集中随机划分了20%的数据作为测试集，来评估推荐算法；此外，由于内存中空间占用不方便进行计算，这里使用pickle库的序列化数据估计模型空间占用。实验结果如下：
 
-| Method |  RMSE | Training Time | Space Consumption |
-|:------:|------:|--------------:|------------------:|
-|   SVD  | 27.08 |247s(3 epoches)|            496MiB |
-|  SVD++ |     - |      infinite |       Same as SVD |
-| Weight |       |   Same as SVD |       Same as SVD |
+| Method |  RMSE |   Training Time | Space Consumption |
+| :----: | ----: | --------------: | ----------------: |
+|  SVD   | 27.08 | 247s(3 epoches) |            496MiB |
+| SVD++  |     - |        infinite |       Same as SVD |
+| Weight | 26.35 |     Same as SVD |       Same as SVD |
 
 SVD++模型的训练时间过长，未能得到训练结果，这里仅得到了SVD和相似属性物品加权（Weight）两个方法的RMSE结果。Weight的预测结果相比SVD算法有些许提升。
 

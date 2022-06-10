@@ -33,17 +33,23 @@ def k_neighbour_with_history(attribute_dict,history,item,k=3):
                 diff+=abs(attributes[1]-attr2)
             if diff<5000:
                 diff_list.append([idx,diff])
-                if len(diff_list)==k:
-                    return diff_list
+            #     if len(diff_list)==k:
+            #         return diff_list
+        diff_list = sorted(diff_list,key = lambda k:k[1])
+        if len(diff_list)>k:
+            return diff_list[:k]
     return diff_list
 
 def k_neighbour(attribute_dict,item,k=3):
+    #如果不在属性列表里
     if item not in attribute_dict:
         return []
+
     attr1,attr2 = attribute_dict[item]
     flag_1 = attr1!=-1
     flag_2 = attr2!=-1
     diff_list = []
+    #对不为None的属性进行距离计算
     for idx,attributes in attribute_dict.items():
         tmp_flag_1 = attributes[0]!=-1
         tmp_flag_2 = attributes[1]!=-1
