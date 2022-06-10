@@ -240,8 +240,8 @@ if __name__ == '__main__':
     train, test = split(train)
     user_num = 19835
     item_num = 624961
-    for i in range(10):
-        surprise_test(test, i)
+    # for i in range(10):
+    #     surprise_test(test, i)
     # svd_test(train, "./data-202205/test.txt", './svd_100.pkl')
     svd_train(train,
               test,
@@ -249,7 +249,7 @@ if __name__ == '__main__':
               item_num,
               epoch=20,
               lr=0.0005,
-              dim=50,
+              dim=100,
               lambda_=0.02)
     # svdpp_train(train,
     #           test,
