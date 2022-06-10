@@ -2,17 +2,21 @@
 
 ## 数据集
 
+数据集规模如下，分别是训练集和测试集中，用户和物品的维度。
+
 |    Size    | user | item |
 |:----------:|-----:|-----:|
 | train set  | 19835 |624960 |
 | test set   |      |      |
 
+数据集统计数据如下，分别是非空项数，稀疏占比，均值，标准差。
+
 | Statistics | ratings | item attr1 | item attr2 |
 |:----------:|--------:|-----------:|-----------:|
-|   size     | 5001507 |            |            |
-| sparseness | 99.96%  |            |            |
-|    mean    |         |            |            |
-|  variance  |         |            |            |
+|   size     | 5001507 |    464932  |    443687  |
+| sparseness |  99.96% |     8.33%  |    12.52%  |
+|    mean    |   49.50 |    314596  |    311482  |
+|    S.D.    |   38.22 |    180956  |    179777  |
 
 ## 推荐算法
 
@@ -144,11 +148,24 @@ def svdpp_eval(mean, test, pu, qi, bu, bi, yj):
 
 ### 相似属性物品加权
 
+
+
 ### 相似属性物品投票
 
-Details of the algorithms; 
+本小节希望使用物品的属性值对SVD模型预测结果进行修正。假设是具有相似属性值物品应当具有相似的偏差。
+
+
 
 ## 实验结果及分析
+
+这里在训练集中随机划分了20%的数据作为测试集，来评估推荐算法；此外，由于内存中空间占用不方便进行计算，这里使用pickle库的序列化数据估计模型空间占用。实验结果如下：
+
+| Method |  RMSE | Training Time | Space Consumption |
+|:------:|------:|--------------:|------------------:|
+|   SVD  | 27.08 |       000.00s |           0000MiB |
+|  SVD++ |     - |      infinite |       Same as SVD |
+| weight |       |               |                   |
+|  vote  |       |               |                   |
 
 Experimental results of the recommendation algorithms (RMSE, training time, space consumption); Theoretical analysis or/and experimental analysis of the algorithms.
 
