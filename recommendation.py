@@ -5,12 +5,12 @@ import copy
 import math
 import numpy as np
 import csv
+import time
 from numpy import seterr
 import surprise
-
+import time
+from neighbour import read_attribute,k_neighbour
 seterr(all='raise')
-
-
 def load_data(path, pickle_path='data.pkl'):
     if os.path.exists(pickle_path):
         with open(pickle_path, 'rb') as f:
@@ -91,6 +91,7 @@ def svd_train(train, test, user_num, item_num, epoch, lr, dim, lambda_):
     pu = np.random.rand(user_num, dim)
     qi = np.random.rand(item_num, dim)
     mean = get_train_mean(train)
+    start = time.time()
     for epoch_ in range(epoch):
         for user, items in train.items():
             for item in items.keys():
@@ -114,6 +115,8 @@ def svd_train(train, test, user_num, item_num, epoch, lr, dim, lambda_):
             d['qi'] = qi
             with open('svd_{}.pkl'.format(dim), 'wb') as f:
                 pickle.dump(d, f)
+        Tend= time.time()
+        print('训练总用时:%s毫秒' % ((Tend - Tstart)))
 
 
 def svd_eval(mean, test, pu, qi, bu, bi):
@@ -125,8 +128,14 @@ def svd_eval(mean, test, pu, qi, bu, bi):
             score = dot + bi[item] + bu[user] + mean
             sum += (score - items[item])**2
             num += 1
+            if num>5000:
+                np.sqrt(sum / num)
     return np.sqrt(sum / num)
 
+def svd_per_eval(mean,user,item,pu,qi,bu,bi):
+    dot = np.dot(pu[user],qi[item])
+    score = dot + bi[item] + bu[user]+mean
+    return score
 
 def svd_test(train, test_path, pkl_path):
     mean = get_train_mean(train)
@@ -152,6 +161,27 @@ def svd_test(train, test_path, pkl_path):
                     f2.write("{}  {}\n".format(item, score))
                 line = f1.readline()
 
+def svd_eval_with_kneighbour(mean, test, pu, qi, bu, bi,attribute_dict):
+    sum = 0
+    num = 0
+    print("n:user",len(test.items()))
+    for user, items in test.items():
+        for item in items.keys():
+            dot = np.dot(pu[user], qi[item])
+            diff_list = k_neighbour(attribute_dict,item)
+            for diff in diff_list:
+                neighbour_item = diff[0]
+                dot += np.dot(pu[user],qi[neighbour_item])
+            score = dot/(len(diff_list)+1)+ bi[item] + bu[user] + mean
+            sum += (score - items[item])**2
+            num += 1
+            if num%100==0:
+                print(num,time.time()-start)
+            if num>5000:
+                return np.sqrt(sum / num)
+    return np.sqrt(sum / num)
+
+
 
 def svdpp_train(train, test, user_num, item_num, epoch, lr, dim, lambda_):
     best = 100000
@@ -161,6 +191,7 @@ def svdpp_train(train, test, user_num, item_num, epoch, lr, dim, lambda_):
     qi = np.random.rand(item_num, dim)
     yj = np.random.rand(item_num, dim)
     mean = get_train_mean(train)
+    Tstart= time.time()
     for epoch_ in range(epoch):
         for user, items in train.items():
             print(user)
@@ -251,6 +282,20 @@ if __name__ == '__main__':
               lr=0.0005,
               dim=100,
               lambda_=0.02)
+    # pkl_path = "svd_100.pkl"
+    # mean = get_train_mean(train)
+    # with open(pkl_path, 'rb') as f:
+    #     d = pickle.load(f)
+    # bu = d['bu']
+    # bi = d['bi']
+    # pu = d['pu']
+    # qi = d['qi']
+    # attribute_dict = read_attribute("data-202205/itemAttribute.txt")
+    # print("eval with kneighbour...")
+    # print(svd_eval_with_kneighbour(mean,test,pu,qi,bu,bi,attribute_dict))
+    # print("eval...")
+    # print(svd_eval(mean,test,pu,qi,bu,bi))
+
     # svdpp_train(train,
     #           test,
     #           user_num,

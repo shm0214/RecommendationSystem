@@ -2,7 +2,7 @@ from recommendation import *
 from collections import defaultdict
 import scipy.spatial as spt
 
-def get_knn_mean():
+def get_knn_mean(user,item):
     return 50
 
 def get_svd_score(svd,user,item):
@@ -17,8 +17,8 @@ def train_vote(train_set,svd,model,lr):
             svd_score=get_svd_score(svd,user,item)
             knn_score=get_knn_mean(user,item)
             w=model[user]
-            score_diff=score-(w*knn_score+(1-w)*svd_score)
-            model[user] += lr*score_diff/(knn_score-svd_score)
+            error=score-(w*knn_score+(1-w)*svd_score)
+            model[user] += lr*error/(knn_score-svd_score)
 
 def eval_vote(model,svd,test_set):
     sum = 0
@@ -45,9 +45,9 @@ if __name__ == '__main__':
     with open('attr.pkl','rb') as f:
         item_attr=pickle.load(f)
 
-    vote_weight = defaultdict(float)
+    vote_weight = defaultdict(lambda :0.1)
     for epoch in range(20):
-        train_vote(train,d,vote_weight,0.005)
+        train_vote(train,d,vote_weight,1e-4)
         rmse=eval_vote(vote_weight,d,test)
         print('epoch {}: RMSE: {}'.format(epoch, rmse))
 

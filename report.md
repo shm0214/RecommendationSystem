@@ -148,13 +148,7 @@ def svdpp_eval(mean, test, pu, qi, bu, bi, yj):
 
 ### 相似属性物品加权
 
-
-
-### 相似属性物品投票
-
-本小节希望使用物品的属性值对SVD模型预测结果进行修正。假设是具有相似属性值物品应当具有相似的偏差。
-
-
+此外，还尝试了“用户已经打分过的物品中和所预测item最相似的几个item计算得分”和SVD结果进行融合，相似度使用属性值进行计算。但是最终未能成功训练出能够收敛的模型，隧不在实验结果中展示。
 
 ## 实验结果及分析
 
@@ -162,10 +156,9 @@ def svdpp_eval(mean, test, pu, qi, bu, bi, yj):
 
 | Method |  RMSE | Training Time | Space Consumption |
 |:------:|------:|--------------:|------------------:|
-|   SVD  | 27.08 |       000.00s |           0000MiB |
+|   SVD  | 27.08 |       000.00s |            496MiB |
 |  SVD++ |     - |      infinite |       Same as SVD |
-| weight |       |               |                   |
-|  vote  |       |               |                   |
+| Weight |       |               |                   |
 
-Experimental results of the recommendation algorithms (RMSE, training time, space consumption); Theoretical analysis or/and experimental analysis of the algorithms.
+SVD++模型的训练时间过长，未能得到训练结果，这里仅得到了SVD和相似属性物品加权（Weight）两个方法的RMSE结果。Weight的预测结果相比SVD算法有些许提升。
 
