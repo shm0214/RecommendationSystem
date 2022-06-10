@@ -156,9 +156,9 @@ def svdpp_eval(mean, test, pu, qi, bu, bi, yj):
 
 | Method |  RMSE | Training Time | Space Consumption |
 |:------:|------:|--------------:|------------------:|
-|   SVD  | 27.08 |       000.00s |            496MiB |
+|   SVD  | 27.08 |247s(3 epoches)|            496MiB |
 |  SVD++ |     - |      infinite |       Same as SVD |
-| Weight |       |               |            505MiB |
+| Weight |       |   Same as SVD |       Same as SVD |
 
 SVD++模型的训练时间过长，未能得到训练结果，这里仅得到了SVD和相似属性物品加权（Weight）两个方法的RMSE结果。Weight的预测结果相比SVD算法有些许提升。
 

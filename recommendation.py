@@ -300,31 +300,31 @@ if __name__ == '__main__':
     # for i in range(10):
     #     surprise_test(test, i)
     # svd_test(train, "./data-202205/test.txt", './svd_100.pkl')
-    # svd_train(train,
-    #           test,
-    #           user_num,
-    #           item_num,
-    #           epoch=20,
-    #           lr=0.0005,
-    #           dim=100,
-    #           lambda_=0.02)
-    pkl_path = "svd_100.pkl"
-    mean = get_train_mean(train)
-    with open(pkl_path, 'rb') as f:
-        d = pickle.load(f)
-    bu = d['bu']
-    bi = d['bi']
-    pu = d['pu']
-    qi = d['qi']
-    attribute_dict = read_attribute("data-202205/itemAttribute.txt")
-    with open("neighbour.pkl", 'wb') as f:
-        pickle.dump(attribute_dict,f)
-    # print("eval with kneighbour...")
-    # print(svd_eval_with_kneighbour(mean,test,pu,qi,bu,bi,attribute_dict))
-    print("eval with history...")
-    print(svd_eval_with_history(mean,train,test,pu,qi,bu,bi,attribute_dict))
-    print("eval...")
-    print(svd_eval(mean,test,pu,qi,bu,bi))
+    svd_train(train,
+              test,
+              user_num,
+              item_num,
+              epoch=20,
+              lr=0.0005,
+              dim=100,
+              lambda_=0.02)
+    # pkl_path = "svd_100.pkl"
+    # mean = get_train_mean(train)
+    # with open(pkl_path, 'rb') as f:
+    #     d = pickle.load(f)
+    # bu = d['bu']
+    # bi = d['bi']
+    # pu = d['pu']
+    # qi = d['qi']
+    # attribute_dict = read_attribute("data-202205/itemAttribute.txt")
+    # with open("neighbour.pkl", 'wb') as f:
+    #     pickle.dump(attribute_dict,f)
+    # # print("eval with kneighbour...")
+    # # print(svd_eval_with_kneighbour(mean,test,pu,qi,bu,bi,attribute_dict))
+    # print("eval with history...")
+    # print(svd_eval_with_history(mean,train,test,pu,qi,bu,bi,attribute_dict))
+    # print("eval...")
+    # print(svd_eval(mean,test,pu,qi,bu,bi))
 
     # svdpp_train(train,
     #           test,
